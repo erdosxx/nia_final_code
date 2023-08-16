@@ -1,0 +1,47 @@
+
+work_dir: ./work_dir/miso_B/joint
+
+# feeder
+feeder: feeders.feeder.Feeder
+train_feeder_args:
+  data_path: ./data/miso_B/train_data_joint.npy
+  label_path: ./data/miso_B/train_label.pkl
+  debug: False
+
+test_feeder_args:
+  data_path: ./data/miso_B/test_data_joint.npy
+  label_path: ./data/miso_B/test_label.pkl
+
+# model
+model: model.msg3d_nia.Model
+model_args:
+  num_class: 4
+  num_point: 18
+  num_person: 1
+  in_channels: 2
+  num_gcn_scales: 8
+  num_g3d_scales: 8
+  graph: graph.kinetics.AdjMatrixGraph
+
+# optim
+# weight_decay: 0.0005
+weight_decay: 0.0005
+base_lr: 0.001
+#base_lr: 0.1
+step: [20, 25, 30]
+
+# training
+num_epoch: 40
+# device: [0, 1]
+device: [0, 1]
+# batch_size: 32
+batch_size: 16
+# forward_batch_size: 32
+forward_batch_size: 8
+# test_batch_size: 32
+test_batch_size: 16
+nesterov: True
+
+
+
+
