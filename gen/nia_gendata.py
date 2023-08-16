@@ -15,7 +15,7 @@ num_person_in = 1
 
 
 class Feeder_kinetics(Dataset):
-    """ Feeder for skeleton-based action recognition in kinetics-skeleton dataset
+    """Feeder for skeleton-based action recognition in kinetics-skeleton dataset
     # Joint index:
     # {0,  "Nose"}
     # {1,  "Neck"},
@@ -44,13 +44,15 @@ class Feeder_kinetics(Dataset):
         debug: If true, only use the first 100 samples
     """
 
-    def __init__(self,
-                 data_path,
-                 label_path,
-                 ignore_empty_sample=True,
-                 window_size=-1,
-                 num_person_in=5,
-                 num_person_out=2):
+    def __init__(
+        self,
+        data_path,
+        label_path,
+        ignore_empty_sample=True,
+        window_size=-1,
+        num_person_in=5,
+        num_person_out=2,
+    ):
         self.data_path = data_path
         self.label_path = label_path
         self.window_size = window_size
@@ -69,13 +71,19 @@ class Feeder_kinetics(Dataset):
         with open(label_path) as f:
             label_info = json.load(f)
 
-        sample_id = [name.split('.')[0] for name in self.sample_name]
-        self.label = np.array([label_info[id]['label_index'] for id in sample_id])
-        has_skeleton = np.array([label_info[id]['has_skeleton'] for id in sample_id])
+        sample_id = [name.split(".")[0] for name in self.sample_name]
+        self.label = np.array(
+            [label_info[id]["label_index"] for id in sample_id]
+        )
+        has_skeleton = np.array(
+            [label_info[id]["has_skeleton"] for id in sample_id]
+        )
 
         # ignore the samples which does not has skeleton sequence
         if self.ignore_empty_sample:
-            self.sample_name = [s for h, s in zip(has_skeleton, self.sample_name) if h]
+            self.sample_name = [
+                s for h, s in zip(has_skeleton, self.sample_name) if h
+            ]
             self.label = self.label[has_skeleton]
 
         # output data shape (N, C, T, V, M)
@@ -92,25 +100,23 @@ class Feeder_kinetics(Dataset):
         return self
 
     def __getitem__(self, index):
-
         # output shape (C, T, V, M)
         # get data
         sample_name = self.sample_name[index]
-        
+
         sample_path = os.path.join(self.data_path, sample_name)
-        with open(sample_path, 'r') as f:
+        with open(sample_path, "r") as f:
             video_info = json.load(f)
-        
+
         # fill data_numpy
         data_numpy = np.zeros((self.C, self.T, self.V, self.num_person_in))
-        for frame_info in video_info['data']:
-            frame_index = frame_info['frame_index']
-           
-            
+        for frame_info in video_info["data"]:
+            frame_index = frame_info["frame_index"]
+
             if frame_index == self.T:
                 break
-            c1 = frame_info['skeleton'][0::2]
-            c2 = frame_info['skeleton'][1::2]
+            c1 = frame_info["skeleton"][0::2]
+            c2 = frame_info["skeleton"][1::2]
             data_numpy[0, frame_index, :, 0] = c1
             data_numpy[1, frame_index, :, 0] = c2
 
@@ -119,59 +125,66 @@ class Feeder_kinetics(Dataset):
         data_numpy[1:2] = -data_numpy[1:2]
 
         # get & check label index
-        label = video_info['label_index']
-        assert (self.label[index] == label)
+        label = video_info["label_index"]
+        assert self.label[index] == label
 
-        data_numpy = data_numpy[:, :, :, 0:self.num_person_out]
+        data_numpy = data_numpy[:, :, :, 0 : self.num_person_out]
 
         return data_numpy, label
 
 
-def gendata(data_path, label_path,
-            data_out_path, label_out_path,
-            num_person_in=num_person_in,  # observe the first 5 persons
-            num_person_out=num_person_out,  # then choose 2 persons with the highest score
-            max_frame=max_frame):
+def gendata(
+    data_path,
+    label_path,
+    data_out_path,
+    label_out_path,
+    num_person_in=num_person_in,  # observe the first 5 persons
+    num_person_out=num_person_out,  # then choose 2 persons with the highest score
+    max_frame=max_frame,
+):
     feeder = Feeder_kinetics(
         data_path=data_path,
         label_path=label_path,
         num_person_in=num_person_in,
         num_person_out=num_person_out,
-        window_size=max_frame)
+        window_size=max_frame,
+    )
 
     sample_name = feeder.sample_name
     sample_label = []
 
-    fp = np.zeros((len(sample_name), 2, max_frame, num_joint, num_person_out), dtype=np.float32)
+    fp = np.zeros(
+        (len(sample_name), 2, max_frame, num_joint, num_person_out),
+        dtype=np.float32,
+    )
 
     for i, s in enumerate(tqdm(sample_name)):
         data, label = feeder[i]
-        fp[i, :, 0:data.shape[1], :, :] = data
+        fp[i, :, 0 : data.shape[1], :, :] = data
         sample_label.append(label)
 
-    with open(label_out_path, 'wb') as f:
+    with open(label_out_path, "wb") as f:
         pickle.dump((sample_name, list(sample_label)), f)
 
     np.save(data_out_path, fp)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Kinetics-skeleton Data Converter.')
-    parser.add_argument(
-        '--data_path', default='../data/nia_raw')
-    parser.add_argument(
-        '--out_folder', default='../data/nia')
+        description="Kinetics-skeleton Data Converter."
+    )
+    parser.add_argument("--data_path", default="../data/nia_raw")
+    parser.add_argument("--out_folder", default="../data/nia")
     arg = parser.parse_args()
 
-    part = ['test', 'train']
+    part = ["test", "train"]
     for p in part:
-        print('NIA ', p)
+        print("NIA ", p)
         if not os.path.exists(arg.out_folder):
             os.makedirs(arg.out_folder)
-        data_path = '{}/{}'.format(arg.data_path, p)
-        label_path = '{}/{}_label.json'.format(arg.data_path, p)
-        data_out_path = '{}/{}_data_joint.npy'.format(arg.out_folder, p)
-        label_out_path = '{}/{}_label.pkl'.format(arg.out_folder, p)
+        data_path = "{}/{}".format(arg.data_path, p)
+        label_path = "{}/{}_label.json".format(arg.data_path, p)
+        data_out_path = "{}/{}_data_joint.npy".format(arg.out_folder, p)
+        label_out_path = "{}/{}_label.pkl".format(arg.out_folder, p)
 
         gendata(data_path, label_path, data_out_path, label_out_path)
